@@ -4,7 +4,7 @@
 
 
 ## Project Overview
-This project is an inverted pendulum robot powered by an ESP32 microcontroller, an MPU6050 6-axis IMU, and an L298N motor driver. The core objective is to maintain vertical equilibrium using a custom tuned 'Proportional Integral Derivative' (PID)controller.
+This project is an inverted pendulum robot powered by an ESP32 microcontroller, an MPU6050 3-axis IMU, and an L298N motor driver. The core objective is to maintain vertical equilibrium using a custom tuned 'Proportional Integral Derivative' (PID)controller.
 
 ---
 
