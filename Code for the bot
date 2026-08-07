@@ -19,7 +19,7 @@ unsigned long lastTime = 0;
 
 //  PID Constants (Locked from Tuning) 
 double Kp = 8.0;   
-double Ki = 0.0;   
+double Ki = 0.01;   
 double Kd = 0.85;  
 
 //  Calibration Center 
