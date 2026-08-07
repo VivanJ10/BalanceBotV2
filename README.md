@@ -1,4 +1,4 @@
-# 🤖 Two-Wheeled Self-Balancing Robot (ESP32)
+# Self-Balancing Robot (ESP32)
 
 **Author:** Vivan Vishal Jadhav  
 
