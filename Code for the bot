@@ -1,0 +1,154 @@
+
+
+#include <Wire.h>
+
+// ESP32 Motor Pins (L298N) 
+const uint8_t ENA = 13; // PWM Left
+const uint8_t IN1 = 27; // Dir Left
+const uint8_t IN2 = 14; // Dir Left
+const uint8_t IN3 = 26; // Dir Right
+const uint8_t IN4 = 32; // Dir Right
+const uint8_t ENB = 25; // PWM Right
+
+//  MPU6050 I2C Address
+const int MPU_ADDR = 0x68;
+
+// DSP & Filter Variables 
+float pitchAngle = 0.0;
+unsigned long lastTime = 0;
+
+//  PID Constants (Locked from Tuning) 
+double Kp = 8.0;   
+double Ki = 0.0;   
+double Kd = 0.85;  
+
+//  Calibration Center 
+// IMPORTANT: Update this value with your actual Pinch Test angle
+double setpoint = 0.0; 
+
+//  System State 
+double integral = 0.0;
+double lastError = 0.0;
+
+// Motor Limits
+const int MIN_SPEED = 50;  
+const int MAX_SPEED = 250; 
+
+void setup() {
+  Serial.begin(115200); 
+  
+  // 1. Initialize Motors
+  pinMode(ENA, OUTPUT); pinMode(ENB, OUTPUT);
+  pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
+  
+  analogWrite(ENA, 0); 
+  analogWrite(ENB, 0);
+
+  // 2. Initialize MPU6050 (SDA=21, SCL=22)
+  Wire.begin(21, 22); 
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x6B);  // Power management register
+  Wire.write(0);     // Wake up the MPU6050
+  Wire.endTransmission(true);
+  
+  Serial.println("System Booted. Autonomous Balancing Mode Active!");
+  delay(2000); 
+  lastTime = millis();
+}
+
+void loop() {
+  //  1. Calculate Loop Time (dt) 
+  unsigned long now = millis();
+  float dt = (now - lastTime) / 1000.0;
+  if (dt < 0.01) return; // Lock the math to exactly 100Hz
+  lastTime = now;
+
+  // 2. Get the Filtered Angle 
+  pitchAngle = getAngle(dt);
+
+  //  3. The PID Controller 
+  double error = setpoint - pitchAngle;
+  
+  integral += (error * dt);
+  integral = constrain(integral, -150, 150); // Anti-windup cap
+  double derivative = (error - lastError) / dt;
+  lastError = error;
+
+  double pidOutput = (Kp * error) + (Ki * integral) + (Kd * derivative);
+
+  //  4. Motor Mapping 
+  // Emergency Kill Switch
+  if (abs(pitchAngle - setpoint) > 35.0) {
+    motorDrive(0, 0);
+    integral = 0; 
+  } else {
+    int motorPWM = abs(pidOutput);
+    motorPWM = constrain(motorPWM + MIN_SPEED, MIN_SPEED, MAX_SPEED);
+    
+    // Drive Into the Fall
+    if (pidOutput > 0) {
+      motorDrive(motorPWM, motorPWM); // Drive Forward
+    } else {
+      motorDrive(-motorPWM, -motorPWM); // Drive Backward
+    }
+  }
+
+  //  5. Live Telemetry 
+  Serial.print("Angle:");
+  Serial.print(pitchAngle);
+  Serial.print(", Error:");
+  Serial.print(error);
+  Serial.print(", PWM:");
+  Serial.println(pidOutput);
+}
+
+
+// CUSTOM FUNCTIONS
+
+
+float getAngle(float dt) {
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B); 
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_ADDR, 14, true); 
+
+  // Read all raw values in correct order
+  int16_t rawAccX = Wire.read() << 8 | Wire.read(); 
+  int16_t rawAccY = Wire.read() << 8 | Wire.read(); 
+  int16_t rawAccZ = Wire.read() << 8 | Wire.read();
+  int16_t rawTemp = Wire.read() << 8 | Wire.read(); 
+  int16_t rawGyroX = Wire.read() << 8 | Wire.read();
+  int16_t rawGyroY = Wire.read() << 8 | Wire.read(); // Using Y for pitch
+  int16_t rawGyroZ = Wire.read() << 8 | Wire.read();
+  
+  // Convert to physical units
+  float accelX_scaled = rawAccX / 16384.0; 
+  float accelZ_scaled = rawAccZ / 16384.0;
+  float gyroY_scaled = rawGyroY / 131.0; 
+
+  // The Complementary Filter Math
+  float accelPitch = atan2(accelX_scaled, accelZ_scaled) * 180 / PI; 
+  
+  return 0.98 * (pitchAngle + gyroY_scaled * dt) + 0.02 * accelPitch;
+}
+
+void motorDrive(int speedL, int speedR) {
+  // Left Motor Direction
+  if (speedL >= 0) {
+    digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
+  } else {
+    digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
+  }
+  
+  // Right Motor Direction
+  if (speedR >= 0) {
+    digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
+  } else {
+    digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
+  }
+
+  // Apply PWM Speed
+  analogWrite(ENA, abs(speedL));
+  analogWrite(ENB, abs(speedR));
+}
