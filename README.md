@@ -27,7 +27,7 @@ A control loop running strictly at 100Hz calculates the error between the robot'
 * **Proportional (Kp):** The "muscle." Provides immediate motor power directly proportional to how far the robot is falling.
 * **Integral (Ki):** The "memory." Accumulates micro-errors over time to correct slight mechanical drifts (currently minimized to prevent windup).
 * **Derivative (Kd):** The "brakes." Calculates the speed of the fall. As the robot swings back toward the center, the derivative term artificially slows the motors down to prevent overshooting (the "expanding wobble").
-![Image of first prototype](/storage/emulated/0/Pictures/WhatsApp/IMG-20260802-WA0005.jpg)
+
 
 
 ---
