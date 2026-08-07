@@ -23,8 +23,8 @@ double Ki = 0.0;
 double Kd = 0.85;  
 
 //  Calibration Center 
-// IMPORTANT: Update this value with your actual Pinch Test angle
-double setpoint = 0.0; 
+
+double setpoint = -1.75; 
 
 //  System State 
 double integral = 0.0;
